@@ -2,7 +2,7 @@ import { Box, Container } from "@mui/material";
 import { useState } from "react";
 import SideNav from "./SideNav.jsx";
 import HorizontalNav from "./HorizontalNav.jsx";
-import TopBar from "./Topbar.jsx";
+import TopBar from "./TopBar.jsx";
 
 export default function AppShell({ children }) {
     const [open, setOpen] = useState(false);
