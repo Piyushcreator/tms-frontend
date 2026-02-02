@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import Dashboard from "./pages/DashBoard.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
 import Shipments from "./pages/Shipments.jsx";
 import Admin from "./pages/Admin.jsx";
 import NotFound from "./pages/NotFound.jsx";
