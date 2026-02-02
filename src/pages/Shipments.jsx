@@ -1,5 +1,12 @@
 import {
-    Alert, Box, Button, CircularProgress, Paper, Snackbar, TextField, Typography
+    Alert,
+    Box,
+    Button,
+    CircularProgress,
+    Paper,
+    Snackbar,
+    TextField,
+    Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import AppShell from "../layout/AppShell.jsx";
@@ -12,48 +19,72 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { canEditShipment } from "../utils/permissions.js";
 
 export default function Shipments() {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
     const role = user?.role ?? "employee";
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [all, setAll] = useState([]);
+
     const [query, setQuery] = useState("");
     const [view, setView] = useState("grid");
+
     const [openDetails, setOpenDetails] = useState(false);
     const [selected, setSelected] = useState(null);
 
     const [toast, setToast] = useState(null);
 
+    const load = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Pull from GraphQL backend
+            const res = await fetchShipments({
+                token,
+                limit: 200,
+                offset: 0
+            });
+
+            // res = { nodes, totalCount, limit, offset }
+            setAll(res?.nodes ?? []);
+        } catch (e) {
+            setError(e?.message ?? "Failed to load shipments.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         let alive = true;
+
         (async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const rows = await fetchShipments();
-                if (!alive) return;
-                setAll(rows);
-            } catch (e) {
-                if (!alive) return;
-                setError(e?.message ?? "Failed to load shipments.");
-            } finally {
-                if (alive) setLoading(false);
+            if (!token) {
+                setLoading(false);
+                setError("Not authenticated. Please login again.");
+                return;
             }
+            if (!alive) return;
+            await load();
         })();
-        return () => { alive = false; };
-    }, []);
+
+        return () => {
+            alive = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
 
     const rows = useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return all;
+
         return all.filter((s) =>
-            String(s.id).includes(q) ||
-            s.shipperName.toLowerCase().includes(q) ||
-            s.carrierName.toLowerCase().includes(q) ||
-            s.pickupLocation.toLowerCase().includes(q) ||
-            s.deliveryLocation.toLowerCase().includes(q) ||
-            s.trackingNumber.toLowerCase().includes(q)
+            String(s.id).toLowerCase().includes(q) ||
+            (s.shipperName ?? "").toLowerCase().includes(q) ||
+            (s.carrierName ?? "").toLowerCase().includes(q) ||
+            (s.pickupLocation ?? "").toLowerCase().includes(q) ||
+            (s.deliveryLocation ?? "").toLowerCase().includes(q) ||
+            (s.trackingNumber ?? "").toLowerCase().includes(q)
         );
     }, [all, query]);
 
@@ -70,6 +101,7 @@ export default function Shipments() {
     const flagShipment = (s) => setToast(`Flagged #${s.id}`);
 
     const deleteShipment = (s) => {
+        // UI only for now (wire to mutation later)
         setAll((prev) => prev.filter((x) => x.id !== s.id));
         setToast(`Deleted #${s.id}`);
     };
@@ -79,7 +111,9 @@ export default function Shipments() {
             <Paper sx={{ p: 2.5, borderRadius: 4, mb: 2 }}>
                 <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
                     <Box sx={{ flex: 1, minWidth: 240 }}>
-                        <Typography variant="h5" sx={{ fontWeight: 900 }}>Shipments</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 900 }}>
+                            Shipments
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                             Grid (10 columns) + Tile view. Double-click row or click tile for details.
                         </Typography>
@@ -95,7 +129,15 @@ export default function Shipments() {
 
                     <ViewToggle value={view} onChange={setView} />
 
-                    <Button variant="outlined" onClick={() => setToast("Add shipment (admin-only, wire later)")}>
+                    <Button variant="outlined" onClick={load} disabled={loading}>
+                        Refresh
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        disabled={role !== "admin"}
+                        onClick={() => setToast("Add shipment (admin-only, wire later)")}
+                    >
                         Add
                     </Button>
                 </Box>
